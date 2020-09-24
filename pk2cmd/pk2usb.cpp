@@ -183,7 +183,7 @@ int recvUSB(pickit_dev *d, int len, byte *dest)
 	{
 		if (verbose)
 		{
-			printf("recvUSB() PICkit USB read failed\n");
+			printf("recvUSB() PICkit USB read failed: %s\n", strerror(errno));
 			fflush(stdout);
 		}
 
@@ -319,7 +319,7 @@ pickit_dev *usbPickitOpen(int unitIndex, char *unitID)
 									printf("Error setting USB configuration.\n");
 									fflush(stdout);
 								}
-
+								usb_close(d);
 								return NULL;
 							}
 						}
@@ -333,13 +333,26 @@ pickit_dev *usbPickitOpen(int unitIndex, char *unitID)
 									"You may need to `rmmod hid` or patch your kernel's hid driver.\n");
 								fflush(stdout);
 							}
-
+							usb_close(d);
 							return NULL;
 						}
 	#endif
+						/* Need a reset here */
+						usb_reset(d);
+
 						cmd[0] = GETVERSION;
 						sendPickitCmd(d, cmd, 1);
-						recvUSB(d, 8, retData);
+						retval = recvUSB(d, 8, retData);
+						if (!retval)
+						{
+							if (verbose)
+							{
+								printf("Recieve failed\n");
+								fflush(stdout);
+							}
+							usb_close(d);
+							return NULL;
+						}
 
 						if (retData[5] == 'B')
 						{
